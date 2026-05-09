@@ -90,7 +90,7 @@ All settings are loaded from `secrets.env` (required, git-ignored) plus `src/mai
 | `GOOGLE_CLIENT_ID` | ✅ | — | From Google Cloud Console |
 | `GOOGLE_CLIENT_SECRET` | ✅ | — | From Google Cloud Console |
 | `GOOGLE_EMAIL` | ✅ | — | Your Google account email |
-| `NYTIMES_REDEEM_URL` | ❌ | `https://api.nytimes.com/svc/subscription/redeem` | NYTimes endpoint |
+| `NYTIMES_REDEEM_URL` | ❌ | `https://www.nytimes.com/subscription/redeem/all-access` | NYTimes redeem link |
 | `NYTIMES_CAMPAIGN_ID` | ❌ | `87LH8` | Maricopa library campaign |
 | `NYTIMES_GIFT_CODE` | ❌ | `1fd71a2edc5d2d0f` | Maricopa library gift code |
 
@@ -106,7 +106,7 @@ All settings are loaded from `secrets.env` (required, git-ignored) plus `src/mai
 
 1. User (or service startup) authenticates with Google via Spring Security OAuth2 login.
 2. Spring stores and refreshes the authorized client token automatically.
-3. `SubscriptionService` builds a bearer-authenticated POST to the NYTimes redeem endpoint.
+3. `SubscriptionService` calls the NYTimes redeem link with the configured campaign and gift code.
 4. `DailyJob` runs at midnight and calls the same renew logic automatically.
 5. `NYTimesController` exposes `/renew/trigger` for on-demand testing.
 
@@ -170,7 +170,7 @@ Current test coverage:
   - `/renew` and `/renew/trigger` require an OAuth session. Use `/health` for quick unauthenticated checks.
 
 - **Downstream NYTimes failure (`Subscription failed with status: ...`)**
-  - Verify the token is valid and the gift code/campaign id are correct in `secrets.env`.
+  - Verify the redeem URL, gift code, and campaign id are correct in `secrets.env`.
   - Retry after a short interval if the NYTimes API is transiently unavailable.
 
 - **Service won't start**

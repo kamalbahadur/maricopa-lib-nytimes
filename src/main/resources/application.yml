@@ -12,7 +12,7 @@ spring:
               - email
 
 nytimes:
-  redeem-url: ${NYTIMES_REDEEM_URL:https://api.nytimes.com/svc/subscription/redeem}
+  redeem-url: ${NYTIMES_REDEEM_URL:https://www.nytimes.com/subscription/redeem/all-access}
   campaign-id: ${NYTIMES_CAMPAIGN_ID:87LH8}
   gift-code: ${NYTIMES_GIFT_CODE:1fd71a2edc5d2d0f}
   oauth2:

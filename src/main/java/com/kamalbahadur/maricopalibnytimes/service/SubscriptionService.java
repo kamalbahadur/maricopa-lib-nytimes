@@ -61,13 +61,12 @@ public class SubscriptionService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN));
+        headers.setAccept(java.util.List.of(MediaType.TEXT_HTML, MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN));
 
         HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, String.class);
             HttpStatusCode statusCode = response.getStatusCode();
             if (statusCode.is2xxSuccessful()) {
                 log.info("NYTimes subscription redemption succeeded. status={}", statusCode.value());

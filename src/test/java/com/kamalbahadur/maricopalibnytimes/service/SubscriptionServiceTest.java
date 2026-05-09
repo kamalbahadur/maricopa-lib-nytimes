@@ -47,7 +47,7 @@ class SubscriptionServiceTest {
     @BeforeEach
     void setUp() {
         NyTimesProperties properties = new NyTimesProperties();
-        properties.setRedeemUrl("https://api.nytimes.com/svc/subscription/redeem");
+        properties.setRedeemUrl("https://www.nytimes.com/subscription/redeem/all-access");
         properties.setCampaignId("87LH8");
         properties.setGiftCode("gift-code");
 
@@ -73,13 +73,13 @@ class SubscriptionServiceTest {
     void redeemAllAccessCallsRedeemEndpointWhenTokenExists() {
         OAuth2AuthorizedClient client = authorizedClient();
         when(authorizedClientService.loadAuthorizedClient("google", "test@example.com")).thenReturn(client);
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
 
         String response = subscriptionService.redeemAllAccess();
 
         assertThat(response).contains("Subscription successful");
-        verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class));
+        verify(restTemplate).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class));
         verify(authorizedClientManager, never()).authorize(any(OAuth2AuthorizeRequest.class));
     }
 
@@ -90,7 +90,7 @@ class SubscriptionServiceTest {
                 UsernamePasswordAuthenticationToken.authenticated("integration-user", "N/A", java.util.List.of());
 
         when(authorizedClientService.loadAuthorizedClient("google", "integration-user")).thenReturn(client);
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
 
         String response = subscriptionService.redeemAllAccess(authentication);

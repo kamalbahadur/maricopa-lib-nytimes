@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "nytimes.oauth2.registration-id=google",
         "nytimes.oauth2.principal-name=test@example.com",
-        "nytimes.redeem-url=https://api.nytimes.com/svc/subscription/redeem",
+        "nytimes.redeem-url=https://www.nytimes.com/subscription/redeem/all-access",
         "nytimes.campaign-id=87LH8",
         "nytimes.gift-code=gift-code"
 })
@@ -65,7 +65,7 @@ class NYTimesControllerIntegrationTest {
     void renewReturnsSuccessfulMessageWhenAuthenticatedAndRedeemSucceeds() throws Exception {
         when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
                 .thenReturn(authorizedClient("integration-user"));
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
 
         mockMvc.perform(get("/renew").with(user("integration-user")))
@@ -77,7 +77,7 @@ class NYTimesControllerIntegrationTest {
     void renewTriggerEndpointReturnsSuccessfulMessageWhenAuthenticated() throws Exception {
         when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
                 .thenReturn(authorizedClient("integration-user"));
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
 
         mockMvc.perform(get("/renew/trigger").with(user("integration-user")))
@@ -102,7 +102,7 @@ class NYTimesControllerIntegrationTest {
     void renewReturnsDownstreamErrorMessageWhenNyTimesFails() throws Exception {
         when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
                 .thenReturn(authorizedClient("integration-user"));
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "NYTimes error"));
 
         mockMvc.perform(get("/renew").with(user("integration-user")))
