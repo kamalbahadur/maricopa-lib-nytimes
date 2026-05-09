@@ -1,6 +1,6 @@
-package com.example.demo.job;
+package com.kamalbahadur.maricopalibnytimes.job;
 
-import com.example.demo.service.SubscriptionService;
+import com.kamalbahadur.maricopalibnytimes.service.SubscriptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;

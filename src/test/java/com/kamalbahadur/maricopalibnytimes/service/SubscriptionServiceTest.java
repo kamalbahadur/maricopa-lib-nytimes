@@ -1,6 +1,6 @@
-package com.example.demo.service;
+package com.kamalbahadur.maricopalibnytimes.service;
 
-import com.example.demo.config.NyTimesProperties;
+import com.kamalbahadur.maricopalibnytimes.config.NyTimesProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

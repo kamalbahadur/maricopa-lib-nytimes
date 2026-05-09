@@ -1,6 +1,6 @@
-package com.example.demo.service;
+package com.kamalbahadur.maricopalibnytimes.service;
 
-import com.example.demo.config.NyTimesProperties;
+import com.kamalbahadur.maricopalibnytimes.config.NyTimesProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;

@@ -2,6 +2,34 @@
 
 This guide includes only the required steps to install and verify `maricopa-lib-nytimes`.
 
+## Prerequisite: Java 17
+
+If JDK 17 is not installed, install it first:
+
+```bash
+sudo apt install openjdk-17-jdk
+```
+
+Optional verification:
+
+```bash
+java -version
+```
+
+## Prerequisite: Git
+
+If Git is not installed, install it first:
+
+```bash
+sudo apt install git
+```
+
+Optional verification:
+
+```bash
+git --version
+```
+
 ## 1) Clone the Git Repo
 
 ```bash
@@ -29,10 +57,12 @@ How to obtain `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`:
 
 1. Open Google Cloud Console: `https://console.cloud.google.com/`
 2. Select or create a project.
+   - Click the project dropdown in the top-left area of the page, then choose your project (or create one).
 3. Go to **APIs & Services -> OAuth consent screen** and complete setup.
 4. Add your Google account as a test user (if app is in testing mode).
 5. Go to **APIs & Services -> Credentials -> Create Credentials -> OAuth client ID**.
 6. Choose **Web application**.
+   - Do **not** choose **Desktop app**. Desktop app credentials can cause repeated Google account selection/login loops.
 7. Add this Authorized redirect URI:
    - `http://localhost:8080/login/oauth2/code/google`
 8. Copy the generated values into `secrets.env`:

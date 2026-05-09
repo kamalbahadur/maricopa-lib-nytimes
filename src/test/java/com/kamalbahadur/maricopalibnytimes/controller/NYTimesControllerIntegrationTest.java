@@ -1,4 +1,4 @@
-package com.example.demo.controller;
+package com.kamalbahadur.maricopalibnytimes.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

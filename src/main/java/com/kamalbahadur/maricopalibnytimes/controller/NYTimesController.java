@@ -1,6 +1,6 @@
-package com.example.demo.controller;
+package com.kamalbahadur.maricopalibnytimes.controller;
 
-import com.example.demo.service.SubscriptionService;
+import com.kamalbahadur.maricopalibnytimes.service.SubscriptionService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 

@@ -70,6 +70,7 @@ You need OAuth credentials for Google to authorize this app to act on your behal
    - Choose **External**, fill in app name, and add your Google email as a **test user**.
 4. Go to **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
 5. Choose **Web application**.
+   - Do **not** choose **Desktop app**. It will cause OAuth redirect/login loops with this service.
 6. Under **Authorized redirect URIs** add:
    ```
    http://localhost:8080/login/oauth2/code/google
