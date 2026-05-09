@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
@@ -48,6 +49,9 @@ class NYTimesControllerIntegrationTest {
     private OAuth2AuthorizedClientManager authorizedClientManager;
 
     @MockBean
+    private OAuth2AuthorizedClientService authorizedClientService;
+
+    @MockBean
     private RestTemplate restTemplate;
 
     @Test
@@ -59,7 +63,8 @@ class NYTimesControllerIntegrationTest {
 
     @Test
     void renewReturnsSuccessfulMessageWhenAuthenticatedAndRedeemSucceeds() throws Exception {
-        when(authorizedClientManager.authorize(any())).thenReturn(authorizedClient());
+        when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
+                .thenReturn(authorizedClient("integration-user"));
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
 
@@ -70,7 +75,8 @@ class NYTimesControllerIntegrationTest {
 
     @Test
     void renewTriggerEndpointReturnsSuccessfulMessageWhenAuthenticated() throws Exception {
-        when(authorizedClientManager.authorize(any())).thenReturn(authorizedClient());
+        when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
+                .thenReturn(authorizedClient("integration-user"));
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
 
@@ -81,6 +87,7 @@ class NYTimesControllerIntegrationTest {
 
     @Test
     void renewReturnsHelpfulMessageWhenAuthorizedClientIsMissing() throws Exception {
+        when(authorizedClientService.loadAuthorizedClient("google", "integration-user")).thenReturn(null);
         when(authorizedClientManager.authorize(any())).thenReturn(null);
 
         mockMvc.perform(get("/renew").with(user("integration-user")))
@@ -93,7 +100,8 @@ class NYTimesControllerIntegrationTest {
 
     @Test
     void renewReturnsDownstreamErrorMessageWhenNyTimesFails() throws Exception {
-        when(authorizedClientManager.authorize(any())).thenReturn(authorizedClient());
+        when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
+                .thenReturn(authorizedClient("integration-user"));
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
                 .thenThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "NYTimes error"));
 
@@ -102,7 +110,7 @@ class NYTimesControllerIntegrationTest {
                 .andExpect(content().string("Manual renewal triggered: Subscription failed with status: 500"));
     }
 
-    private OAuth2AuthorizedClient authorizedClient() {
+    private OAuth2AuthorizedClient authorizedClient(String principalName) {
         ClientRegistration registration = ClientRegistration.withRegistrationId("google")
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .clientId("client-id")
@@ -119,7 +127,7 @@ class NYTimesControllerIntegrationTest {
                 Instant.now().plusSeconds(300)
         );
 
-        return new OAuth2AuthorizedClient(registration, "test@example.com", accessToken);
+        return new OAuth2AuthorizedClient(registration, principalName, accessToken);
     }
 }
 

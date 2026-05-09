@@ -10,9 +10,11 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
@@ -24,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +38,9 @@ class SubscriptionServiceTest {
 
     @Mock
     private OAuth2AuthorizedClientManager authorizedClientManager;
+
+    @Mock
+    private OAuth2AuthorizedClientService authorizedClientService;
 
     private SubscriptionService subscriptionService;
 
@@ -50,11 +56,12 @@ class SubscriptionServiceTest {
         oauth2.setPrincipalName("test@example.com");
         properties.setOauth2(oauth2);
 
-        subscriptionService = new SubscriptionService(restTemplate, authorizedClientManager, properties);
+        subscriptionService = new SubscriptionService(restTemplate, authorizedClientManager, authorizedClientService, properties);
     }
 
     @Test
     void redeemAllAccessReturnsHelpfulMessageWhenTokenIsMissing() {
+        when(authorizedClientService.loadAuthorizedClient("google", "test@example.com")).thenReturn(null);
         when(authorizedClientManager.authorize(any(OAuth2AuthorizeRequest.class))).thenReturn(null);
 
         String response = subscriptionService.redeemAllAccess();
@@ -65,7 +72,7 @@ class SubscriptionServiceTest {
     @Test
     void redeemAllAccessCallsRedeemEndpointWhenTokenExists() {
         OAuth2AuthorizedClient client = authorizedClient();
-        when(authorizedClientManager.authorize(any(OAuth2AuthorizeRequest.class))).thenReturn(client);
+        when(authorizedClientService.loadAuthorizedClient("google", "test@example.com")).thenReturn(client);
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
 
@@ -73,9 +80,31 @@ class SubscriptionServiceTest {
 
         assertThat(response).contains("Subscription successful");
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class));
+        verify(authorizedClientManager, never()).authorize(any(OAuth2AuthorizeRequest.class));
+    }
+
+    @Test
+    void redeemAllAccessUsesAuthenticatedPrincipalFromRequest() {
+        OAuth2AuthorizedClient client = authorizedClient("integration-user");
+        UsernamePasswordAuthenticationToken authentication =
+                UsernamePasswordAuthenticationToken.authenticated("integration-user", "N/A", java.util.List.of());
+
+        when(authorizedClientService.loadAuthorizedClient("google", "integration-user")).thenReturn(client);
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
+
+        String response = subscriptionService.redeemAllAccess(authentication);
+
+        assertThat(response).contains("Subscription successful");
+        verify(authorizedClientService).loadAuthorizedClient("google", "integration-user");
+        verify(authorizedClientManager, never()).authorize(any(OAuth2AuthorizeRequest.class));
     }
 
     private OAuth2AuthorizedClient authorizedClient() {
+        return authorizedClient("test@example.com");
+    }
+
+    private OAuth2AuthorizedClient authorizedClient(String principalName) {
         ClientRegistration registration = ClientRegistration.withRegistrationId("google")
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .clientId("client-id")
@@ -92,7 +121,7 @@ class SubscriptionServiceTest {
                 Instant.now().plusSeconds(300)
         );
 
-        return new OAuth2AuthorizedClient(registration, "test@example.com", accessToken);
+        return new OAuth2AuthorizedClient(registration, principalName, accessToken);
     }
 }
 

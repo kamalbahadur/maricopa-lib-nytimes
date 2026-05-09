@@ -1,6 +1,7 @@
 package com.kamalbahadur.maricopalibnytimes.controller;
 
 import com.kamalbahadur.maricopalibnytimes.service.SubscriptionService;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,13 +15,13 @@ public class NYTimesController {
     }
 
     @GetMapping("/renew/trigger")
-    public String triggerRenewNow() {
-        return "Manual renewal triggered: " + service.redeemAllAccess();
+    public String triggerRenewNow(Authentication authentication) {
+        return "Manual renewal triggered: " + service.redeemAllAccess(authentication);
     }
 
     @GetMapping("/renew")
-    public String renew() {
+    public String renew(Authentication authentication) {
         // Backward-compatible alias for the explicit trigger endpoint.
-        return triggerRenewNow();
+        return triggerRenewNow(authentication);
     }
 }

@@ -12,6 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
@@ -25,20 +29,27 @@ public class SubscriptionService {
 
     private final RestTemplate restTemplate;
     private final OAuth2AuthorizedClientManager authorizedClientManager;
+    private final OAuth2AuthorizedClientService authorizedClientService;
     private final NyTimesProperties properties;
 
     public SubscriptionService(
             RestTemplate restTemplate,
             OAuth2AuthorizedClientManager authorizedClientManager,
+            OAuth2AuthorizedClientService authorizedClientService,
             NyTimesProperties properties
     ) {
         this.restTemplate = restTemplate;
         this.authorizedClientManager = authorizedClientManager;
+        this.authorizedClientService = authorizedClientService;
         this.properties = properties;
     }
 
     public String redeemAllAccess() {
-        String accessToken = getAccessToken();
+        return redeemAllAccess(null);
+    }
+
+    public String redeemAllAccess(Authentication authentication) {
+        String accessToken = getAccessToken(authentication);
         if (!StringUtils.hasText(accessToken)) {
             return "Failed to retrieve access token. Login once with Google OAuth2 to cache an authorized client.";
         }
@@ -67,32 +78,70 @@ public class SubscriptionService {
             return "Subscription failed with status: " + statusCode.value();
         } catch (RestClientResponseException ex) {
             // Downstream HTTP failures are expected operational outcomes; log concise details without stacktrace noise.
-            log.warn("NYTimes redemption failed. status={} body={}", ex.getRawStatusCode(), ex.getResponseBodyAsString());
-            return "Subscription failed with status: " + ex.getRawStatusCode();
+            log.warn("NYTimes redemption failed. status={} body={}", ex.getStatusCode().value(), ex.getResponseBodyAsString());
+            return "Subscription failed with status: " + ex.getStatusCode().value();
         } catch (Exception ex) {
             log.error("Unexpected error during NYTimes redemption", ex);
             return "Subscription failed due to an unexpected error";
         }
     }
 
-    private String getAccessToken() {
-        if (!StringUtils.hasText(properties.getOauth2().getRegistrationId())
-                || !StringUtils.hasText(properties.getOauth2().getPrincipalName())) {
-            log.warn("Missing nytimes.oauth2.registration-id or nytimes.oauth2.principal-name configuration.");
+    private String getAccessToken(Authentication authentication) {
+        if (!StringUtils.hasText(properties.getOauth2().getRegistrationId())) {
+            log.warn("Missing nytimes.oauth2.registration-id configuration.");
             return null;
         }
 
-        OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
-                .withClientRegistrationId(properties.getOauth2().getRegistrationId())
-                .principal(properties.getOauth2().getPrincipalName())
-                .build();
+        Authentication effectivePrincipal = resolvePrincipal(authentication);
+        if (effectivePrincipal == null) {
+            return null;
+        }
 
-        OAuth2AuthorizedClient client = authorizedClientManager.authorize(authorizeRequest);
+        OAuth2AuthorizedClient client = authorizedClientService.loadAuthorizedClient(
+                properties.getOauth2().getRegistrationId(),
+                effectivePrincipal.getName()
+        );
+
         if (client == null || client.getAccessToken() == null) {
-            log.warn("OAuth2 authorized client not available for principal={}", properties.getOauth2().getPrincipalName());
+            client = authorizeClient(effectivePrincipal);
+        }
+
+        if (client == null || client.getAccessToken() == null) {
+            log.warn("OAuth2 authorized client not available for principal={}", effectivePrincipal.getName());
             return null;
         }
 
         return client.getAccessToken().getTokenValue();
+    }
+
+    private Authentication resolvePrincipal(Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            return authentication;
+        }
+
+        if (!StringUtils.hasText(properties.getOauth2().getPrincipalName())) {
+            log.warn("Missing nytimes.oauth2.principal-name configuration.");
+            return null;
+        }
+
+        return UsernamePasswordAuthenticationToken.authenticated(
+                properties.getOauth2().getPrincipalName(),
+                "N/A",
+                AuthorityUtils.createAuthorityList("ROLE_USER")
+        );
+    }
+
+    private OAuth2AuthorizedClient authorizeClient(Authentication principal) {
+        OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
+                .withClientRegistrationId(properties.getOauth2().getRegistrationId())
+                .principal(principal)
+                .build();
+
+        try {
+            return authorizedClientManager.authorize(authorizeRequest);
+        } catch (Exception ex) {
+            log.warn("OAuth2 authorization attempt failed for principal={}: {}", principal.getName(), ex.getMessage());
+            return null;
+        }
     }
 }
