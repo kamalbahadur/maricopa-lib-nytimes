@@ -77,6 +77,8 @@ Install and run as a Linux `systemd` service:
 make install-service
 ```
 
+If you pull a newer version of the repo later, run `make install-service` again so the service jar and generated `bundle.env` are refreshed.
+
 Useful service commands:
 
 ```bash

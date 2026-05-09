@@ -28,6 +28,8 @@ See **[Get Google Client ID And Secret](#get-google-client-id-and-secret)** belo
 make install-service
 ```
 
+If you pull a newer version later, run `make install-service` again so the service jar and generated runtime config are refreshed.
+
 That's it. The app will:
 
 - Start automatically now and on every reboot.

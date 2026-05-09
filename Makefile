@@ -6,6 +6,10 @@ BUNDLE_DIR  := bundle/$(APP_NAME)
 SECRETS_ENV := secrets.env
 SERVICE_NAME := $(APP_NAME)
 INSTALL_DIR := /opt/$(APP_NAME)
+NYTIMES_REDEEM_URL ?= https://www.nytimes.com/subscription/redeem/all-access
+NYTIMES_CAMPAIGN_ID ?= 87LH8
+NYTIMES_GIFT_CODE ?= 1fd71a2edc5d2d0f
+NYTIMES_OAUTH2_REGISTRATION_ID ?= google
 
 .PHONY: test build bundle run-bundle install-service uninstall-service \
         service-logs service-status clean clean-bundle
@@ -17,6 +21,10 @@ INSTALL_DIR := /opt/$(APP_NAME)
 export GOOGLE_CLIENT_ID
 export GOOGLE_CLIENT_SECRET
 export GOOGLE_EMAIL
+export NYTIMES_REDEEM_URL
+export NYTIMES_CAMPAIGN_ID
+export NYTIMES_GIFT_CODE
+export NYTIMES_OAUTH2_REGISTRATION_ID
 
 # ---------------------------------------------------------------------------
 # Development
@@ -41,10 +49,10 @@ bundle: build
 	printf '%s\n' \
 	  "GOOGLE_CLIENT_ID=$(GOOGLE_CLIENT_ID)" \
 	  "GOOGLE_CLIENT_SECRET=$(GOOGLE_CLIENT_SECRET)" \
-	  "NYTIMES_REDEEM_URL=https://api.nytimes.com/svc/subscription/redeem" \
-	  "NYTIMES_CAMPAIGN_ID=87LH8" \
-	  "NYTIMES_GIFT_CODE=1fd71a2edc5d2d0f" \
-	  "NYTIMES_OAUTH2_REGISTRATION_ID=google" \
+	  "NYTIMES_REDEEM_URL=$(NYTIMES_REDEEM_URL)" \
+	  "NYTIMES_CAMPAIGN_ID=$(NYTIMES_CAMPAIGN_ID)" \
+	  "NYTIMES_GIFT_CODE=$(NYTIMES_GIFT_CODE)" \
+	  "NYTIMES_OAUTH2_REGISTRATION_ID=$(NYTIMES_OAUTH2_REGISTRATION_ID)" \
 	  > "$(BUNDLE_DIR)/bundle.env"
 	printf '%s\n' \
 	  '#!/usr/bin/env bash' \
