@@ -1,8 +1,52 @@
-# NYTimes Auto Subscriber
+# maricopa-lib-nytimes
 
-This Spring Boot app redeems a NYTimes access code using a Google OAuth2 access token.
+A Spring Boot app that automatically redeems a Maricopa Library NYTimes access code every day at midnight using your Google account.
 
-It supports:
+## Quickstart (Clone → Configure → Run as a Service)
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/kamalbahadur/maricopa-lib-nytimes.git
+cd maricopa-lib-nytimes
+
+# 2. Copy the secrets template and fill in your values
+cp secrets.env.example secrets.env
+```
+
+Edit `secrets.env`:
+
+```env
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_EMAIL=you@example.com
+```
+
+See **[Get Google Client ID And Secret](#get-google-client-id-and-secret)** below for how to obtain these.
+
+```bash
+# 3. Build and install as a background service (Linux/systemd)
+make install-service
+```
+
+That's it. The app will:
+
+- Start automatically now and on every reboot.
+- Attempt NYTimes renewal every day at midnight using the Google account in `secrets.env`.
+- Restart automatically if it crashes.
+
+### Other Useful Commands
+
+```bash
+make service-status    # check if the service is running
+make service-logs      # follow live service logs
+make uninstall-service # stop and remove the service
+make test              # run the test suite
+make build             # build the jar only (no install)
+```
+
+---
+
+## Features
 
 - OAuth2 login with Google (`spring-security-oauth2-client`)
 - Public health endpoint via `GET /health`
@@ -10,179 +54,128 @@ It supports:
 - Scheduled renewal every day at midnight (`@Scheduled(cron = "0 0 0 * * ?")`)
 - Centralized config for gift code and campaign id
 - Unit and integration tests for success, missing-token, and downstream-error paths
+- Systemd service installation via `make install-service`
 
 ## Redeem Link
 
-Library link:
-
 `https://www.nytimes.com/subscription/redeem/all-access?campaignId=87LH8&gift_code=1fd71a2edc5d2d0f`
-
-## Configuration
-
-Set these environment variables before running:
-
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `NYTIMES_OAUTH2_PRINCIPAL_NAME` (the Google user email that has logged in)
-
-Optional overrides:
-
-- `NYTIMES_REDEEM_URL` (default: `https://api.nytimes.com/svc/subscription/redeem`)
-- `NYTIMES_CAMPAIGN_ID` (default: `87LH8`)
-- `NYTIMES_GIFT_CODE` (default: `1fd71a2edc5d2d0f`)
-- `NYTIMES_OAUTH2_REGISTRATION_ID` (default: `google`)
-
-All defaults live in `src/main/resources/application.yml`.
 
 ## Get Google Client ID And Secret
 
-You need OAuth credentials for the Google app registration used by this service.
+You need OAuth credentials for Google to authorize this app to act on your behalf.
 
-1. Open Google Cloud Console:
-   - `https://console.cloud.google.com/`
+1. Open: `https://console.cloud.google.com/`
 2. Select an existing project or create one.
-3. Go to **APIs & Services** -> **OAuth consent screen**:
-   - Configure the consent screen if this is your first OAuth app in the project.
-   - Add your Google user as a test user if the app is in testing mode.
-4. Go to **APIs & Services** -> **Credentials** -> **Create Credentials** -> **OAuth client ID**.
+3. Go to **APIs & Services → OAuth consent screen**:
+   - Choose **External**, fill in app name, and add your Google email as a **test user**.
+4. Go to **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
 5. Choose **Web application**.
-6. Add authorized redirect URI:
-   - `http://localhost:8080/login/oauth2/code/google`
-7. Create the client and copy:
-   - **Client ID** -> `GOOGLE_CLIENT_ID`
-   - **Client secret** -> `GOOGLE_CLIENT_SECRET`
+6. Under **Authorized redirect URIs** add:
+   ```
+   http://localhost:8080/login/oauth2/code/google
+   ```
+7. Save and copy:
+   - **Client ID** → `GOOGLE_CLIENT_ID` in your `secrets.env`
+   - **Client secret** → `GOOGLE_CLIENT_SECRET` in your `secrets.env`
 
-Notes:
+> **Note:** keep `secrets.env` private. It is git-ignored and never committed.
 
-- If you only have an existing client ID but not the secret, Google may not show the full secret again. In that case, create a new OAuth client and update this app with the new values.
-- Keep the client secret private. Do not commit it to git.
+## Configuration
 
-Example for local shell session:
+All settings are loaded from `secrets.env` (required, git-ignored) plus `src/main/resources/application.yml` (defaults, committed).
 
-```bash
-export GOOGLE_CLIENT_ID=your-client-id
-export GOOGLE_CLIENT_SECRET=your-client-secret
-export NYTIMES_OAUTH2_PRINCIPAL_NAME=you@example.com
-```
-
-Example for bundle creation:
-
-```bash
-cd /home/kamal-bahadur-nextiva-com/git/maricopa-lib-nytimes
-make bundle GOOGLE_CLIENT_ID=your-client-id GOOGLE_CLIENT_SECRET=your-client-secret
-```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GOOGLE_CLIENT_ID` | ✅ | — | From Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | ✅ | — | From Google Cloud Console |
+| `GOOGLE_EMAIL` | ✅ | — | Your Google account email |
+| `NYTIMES_REDEEM_URL` | ❌ | `https://api.nytimes.com/svc/subscription/redeem` | NYTimes endpoint |
+| `NYTIMES_CAMPAIGN_ID` | ❌ | `87LH8` | Maricopa library campaign |
+| `NYTIMES_GIFT_CODE` | ❌ | `1fd71a2edc5d2d0f` | Maricopa library gift code |
 
 ## Endpoints
 
-- `GET /health` - Public health check, returns `ok`
-- `GET /renew/trigger` - Authenticated endpoint to trigger renew immediately
-- `GET /renew` - Authenticated backward-compatible alias for `/renew/trigger`
+| Endpoint | Auth | Description |
+|---|---|---|
+| `GET /health` | Public | Returns `ok` |
+| `GET /renew/trigger` | Required | Trigger renewal immediately |
+| `GET /renew` | Required | Alias for `/renew/trigger` |
 
 ## How It Works
 
-1. User authenticates with Google through Spring Security OAuth2 login.
-2. Spring stores the authorized client and refresh token support is enabled.
-3. `SubscriptionService` builds a bearer-authenticated POST request to the redeem endpoint.
-4. `DailyJob` runs nightly and calls the same service method as the manual endpoints.
-5. `NYTimesController` exposes manual trigger endpoints so you can test renew instantly.
+1. User (or service startup) authenticates with Google via Spring Security OAuth2 login.
+2. Spring stores and refreshes the authorized client token automatically.
+3. `SubscriptionService` builds a bearer-authenticated POST to the NYTimes redeem endpoint.
+4. `DailyJob` runs at midnight and calls the same renew logic automatically.
+5. `NYTimesController` exposes `/renew/trigger` for on-demand testing.
 
 ## Authentication Notes
 
 - `/health` is public.
 - `/renew` and `/renew/trigger` require an authenticated session.
-- If no authorized OAuth2 client is available yet, renew returns:
-  - `Failed to retrieve access token. Login once with Google OAuth2 to cache an authorized client.`
+- If no authorized OAuth2 client is cached yet, renew returns:
+  ```
+  Failed to retrieve access token. Login once with Google OAuth2 to cache an authorized client.
+  ```
+  Visit `http://localhost:8080` in your browser, log in with Google, then call renew again.
 
-## Run
+## Makefile Reference
 
-```bash
-cd /home/kamal-bahadur-nextiva-com/git/maricopa-lib-nytimes
-mvn spring-boot:run
+| Target | Description |
+|---|---|
+| `make test` | Run the test suite |
+| `make build` | Build the jar (skips tests) |
+| `make bundle` | Build + package into `bundle/maricopa-lib-nytimes/` |
+| `make run-bundle` | Run the bundled app locally |
+| `make install-service` | Build + install + enable + start as a systemd service |
+| `make uninstall-service` | Stop, disable, and remove the service |
+| `make service-status` | Check service status |
+| `make service-logs` | Follow live service logs |
+| `make clean` | Clean Maven build output |
+| `make clean-bundle` | Remove the bundle directory |
+
+## Bundle Output
+
 ```
-
-Then:
-
-- Visit `http://localhost:8080/renew/trigger` after OAuth2 login to trigger manual renewal immediately.
-- `http://localhost:8080/renew` can be used as an alias.
-- Visit `http://localhost:8080/health` for a public health check.
-
-## Build And Bundle (Makefile)
-
-This project includes a `Makefile` with targets to test, build, and create a runnable bundle.
-
-Available targets:
-
-- `make test` - run test suite
-- `make build` - build jar (`target/maricopa-lib-nytimes-0.0.1-SNAPSHOT.jar`)
-- `make bundle GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...` - create distributable bundle
-- `make run-bundle EMAIL=you@example.com` - run bundled app
-
-Create bundle:
-
-```bash
-cd /home/kamal-bahadur-nextiva-com/git/maricopa-lib-nytimes
-make bundle GOOGLE_CLIENT_ID=your-google-client-id GOOGLE_CLIENT_SECRET=your-google-client-secret
+bundle/maricopa-lib-nytimes/
+  app.jar          ← Spring Boot fat jar
+  bundle.env       ← baked-in credentials (not for git)
+  run-bundled.sh   ← launcher (requires only email arg)
 ```
-
-Bundle output:
-
-- `bundle/maricopa-lib-nytimes/app.jar`
-- `bundle/maricopa-lib-nytimes/bundle.env`
-- `bundle/maricopa-lib-nytimes/run-bundled.sh`
-
-Run bundled app (only parameter needed is Google email):
-
-```bash
-cd /home/kamal-bahadur-nextiva-com/git/maricopa-lib-nytimes
-bundle/maricopa-lib-nytimes/run-bundled.sh you@example.com
-```
-
-The bundle stores `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `bundle.env` at bundle time, so runtime only needs the email argument.
 
 ## Test
 
 ```bash
-cd /home/kamal-bahadur-nextiva-com/git/maricopa-lib-nytimes
-mvn test
+make test
 ```
 
-Current coverage includes:
+Current test coverage:
 
-- `SubscriptionService` unit tests for token-missing and successful redeem behavior.
-- `NYTimesController` integration tests for:
+- `SubscriptionService` unit tests: token-missing and successful redeem.
+- `NYTimesController` integration tests:
   - `/health` public access
   - `/renew` success path
   - `/renew/trigger` success path
-  - missing authorized client path
-  - downstream NYTimes 500 error path
+  - missing authorized client
+  - downstream NYTimes 500 error
 
 ## Troubleshooting
 
-- **`/renew` or `/renew/trigger` returns access token message**
-  - Symptom: `Failed to retrieve access token. Login once with Google OAuth2 to cache an authorized client.`
-  - Check that `NYTIMES_OAUTH2_PRINCIPAL_NAME` matches the Google account email used to log in.
-  - Trigger OAuth2 login once in the same app session, then call renew again.
+- **`Failed to retrieve access token`**
+  - Check `GOOGLE_EMAIL` in `secrets.env` matches the Google account you logged in with.
+  - Visit `http://localhost:8080` in your browser to trigger the initial OAuth login.
 
-- **401/redirect when calling renew endpoints**
-  - `/renew` and `/renew/trigger` require authentication.
-  - Use `/health` for unauthenticated checks.
+- **401/redirect on renew endpoints**
+  - `/renew` and `/renew/trigger` require an OAuth session. Use `/health` for quick unauthenticated checks.
 
 - **Downstream NYTimes failure (`Subscription failed with status: ...`)**
-  - Verify `NYTIMES_REDEEM_URL`, `NYTIMES_CAMPAIGN_ID`, and `NYTIMES_GIFT_CODE` values.
-  - Confirm your OAuth2 token is valid for the configured principal.
+  - Verify the token is valid and the gift code/campaign id are correct in `secrets.env`.
   - Retry after a short interval if the NYTimes API is transiently unavailable.
 
-- **Check logs while testing locally**
-
-```bash
-cd /home/kamal-bahadur-nextiva-com/git/maricopa-lib-nytimes
-mvn spring-boot:run
-```
-
-- **Re-run tests to validate behavior quickly**
-
-```bash
-cd /home/kamal-bahadur-nextiva-com/git/maricopa-lib-nytimes
-mvn test
-```
-
+- **Service won't start**
+  - Run `make service-logs` to check for startup errors.
+  - Confirm `java` is installed at `/usr/bin/java`:
+    ```bash
+    which java
+    ```
+  - Confirm `/opt/maricopa-lib-nytimes/bundle.env` exists and has correct values.

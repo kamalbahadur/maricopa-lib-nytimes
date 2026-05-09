@@ -9,6 +9,9 @@
 /.vscode/
 /.venv/
 
+# Secrets - never commit
+secrets.env
+
 # OS/editor noise
 .DS_Store
 *.swp
