@@ -28,7 +28,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -58,56 +58,51 @@ class NYTimesControllerIntegrationTest {
     void healthEndpointIsPublic() throws Exception {
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
-                .andExpect(content().string("ok"));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string("ok"));
     }
 
     @Test
-    void renewReturnsSuccessfulMessageWhenAuthenticatedAndRedeemSucceeds() throws Exception {
-        when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
-                .thenReturn(authorizedClient("integration-user"));
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
-
+    void renewRedirectsAuthenticatedUserToNyTimesRedeemPage() throws Exception {
         mockMvc.perform(get("/renew").with(user("integration-user")))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Manual renewal triggered: Subscription successful"));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", "https://www.nytimes.com/subscription/redeem/all-access?campaignId=87LH8&gift_code=gift-code"));
     }
 
     @Test
-    void renewTriggerEndpointReturnsSuccessfulMessageWhenAuthenticated() throws Exception {
-        when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
-                .thenReturn(authorizedClient("integration-user"));
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
-
+    void renewTriggerEndpointRedirectsAuthenticatedUserToNyTimesRedeemPage() throws Exception {
         mockMvc.perform(get("/renew/trigger").with(user("integration-user")))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Manual renewal triggered: Subscription successful"));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", "https://www.nytimes.com/subscription/redeem/all-access?campaignId=87LH8&gift_code=gift-code"));
     }
 
     @Test
-    void renewReturnsHelpfulMessageWhenAuthorizedClientIsMissing() throws Exception {
-        when(authorizedClientService.loadAuthorizedClient("google", "integration-user")).thenReturn(null);
-        when(authorizedClientManager.authorize(any())).thenReturn(null);
-
-        mockMvc.perform(get("/renew").with(user("integration-user")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(
-                        "Manual renewal triggered: Failed to retrieve access token. " +
-                                "Login once with Google OAuth2 to cache an authorized client."
-                ));
-    }
-
-    @Test
-    void renewReturnsDownstreamErrorMessageWhenNyTimesFails() throws Exception {
+    void serverSideRedeemStillReturnsDownstreamErrorMessageWhenNyTimesFails() {
         when(authorizedClientService.loadAuthorizedClient("google", "integration-user"))
                 .thenReturn(authorizedClient("integration-user"));
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "NYTimes error"));
 
-        mockMvc.perform(get("/renew").with(user("integration-user")))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Manual renewal triggered: Subscription failed with status: 500"));
+        String result = new com.kamalbahadur.maricopalibnytimes.service.SubscriptionService(
+                restTemplate,
+                authorizedClientManager,
+                authorizedClientService,
+                nyTimesProperties()
+        ).redeemAllAccess(org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated("integration-user", "N/A", java.util.List.of()));
+
+        org.assertj.core.api.Assertions.assertThat(result).isEqualTo("Subscription failed with status: 500");
+    }
+
+    private com.kamalbahadur.maricopalibnytimes.config.NyTimesProperties nyTimesProperties() {
+        com.kamalbahadur.maricopalibnytimes.config.NyTimesProperties properties = new com.kamalbahadur.maricopalibnytimes.config.NyTimesProperties();
+        properties.setRedeemUrl("https://www.nytimes.com/subscription/redeem/all-access");
+        properties.setCampaignId("87LH8");
+        properties.setGiftCode("gift-code");
+
+        com.kamalbahadur.maricopalibnytimes.config.NyTimesProperties.OAuth2 oauth2 = new com.kamalbahadur.maricopalibnytimes.config.NyTimesProperties.OAuth2();
+        oauth2.setRegistrationId("google");
+        oauth2.setPrincipalName("test@example.com");
+        properties.setOauth2(oauth2);
+        return properties;
     }
 
     private OAuth2AuthorizedClient authorizedClient(String principalName) {

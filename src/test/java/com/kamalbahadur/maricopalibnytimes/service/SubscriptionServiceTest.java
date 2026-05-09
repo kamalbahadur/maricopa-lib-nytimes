@@ -70,15 +70,15 @@ class SubscriptionServiceTest {
     }
 
     @Test
-    void redeemAllAccessCallsRedeemEndpointWhenTokenExists() {
+    void redeemAllAccessReturnsUnverifiedMessageWhenRedeemLandingPageLoads() {
         OAuth2AuthorizedClient client = authorizedClient();
         when(authorizedClientService.loadAuthorizedClient("google", "test@example.com")).thenReturn(client);
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
+                .thenReturn(ResponseEntity.status(HttpStatus.OK).body("<html><title>Redeem Your Code to Enjoy all of The New York Times.</title></html>"));
 
         String response = subscriptionService.redeemAllAccess();
 
-        assertThat(response).contains("Subscription successful");
+        assertThat(response).contains("activation could not be verified automatically");
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class));
         verify(authorizedClientManager, never()).authorize(any(OAuth2AuthorizeRequest.class));
     }
@@ -91,11 +91,11 @@ class SubscriptionServiceTest {
 
         when(authorizedClientService.loadAuthorizedClient("google", "integration-user")).thenReturn(client);
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(ResponseEntity.status(HttpStatus.OK).body("ok"));
+                .thenReturn(ResponseEntity.status(HttpStatus.OK).body("<html><title>Redeem Your Code to Enjoy all of The New York Times.</title></html>"));
 
         String response = subscriptionService.redeemAllAccess(authentication);
 
-        assertThat(response).contains("Subscription successful");
+        assertThat(response).contains("activation could not be verified automatically");
         verify(authorizedClientService).loadAuthorizedClient("google", "integration-user");
         verify(authorizedClientManager, never()).authorize(any(OAuth2AuthorizeRequest.class));
     }

@@ -22,6 +22,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
+
 @Service
 public class SubscriptionService {
 
@@ -54,10 +56,7 @@ public class SubscriptionService {
             return "Failed to retrieve access token. Login once with Google OAuth2 to cache an authorized client.";
         }
 
-        String url = UriComponentsBuilder.fromUriString(properties.getRedeemUrl())
-                .queryParam("campaignId", properties.getCampaignId())
-                .queryParam("gift_code", properties.getGiftCode())
-                .toUriString();
+        String url = buildRedeemUrl();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
@@ -69,8 +68,14 @@ public class SubscriptionService {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, String.class);
             HttpStatusCode statusCode = response.getStatusCode();
             if (statusCode.is2xxSuccessful()) {
-                log.info("NYTimes subscription redemption succeeded. status={}", statusCode.value());
-                return "Subscription successful";
+                String body = response.getBody();
+                if (looksLikeRedeemLandingPage(body)) {
+                    log.warn("NYTimes redeem landing page loaded, but activation was not verified. Manual browser completion is required.");
+                    return "NYTimes redeem page loaded, but activation could not be verified automatically. Complete redemption in your browser.";
+                }
+
+                log.info("NYTimes renewal request completed with status={}", statusCode.value());
+                return "NYTimes responded successfully, but activation could not be verified automatically.";
             }
 
             log.warn("NYTimes redemption returned non-success status={}", statusCode.value());
@@ -83,6 +88,29 @@ public class SubscriptionService {
             log.error("Unexpected error during NYTimes redemption", ex);
             return "Subscription failed due to an unexpected error";
         }
+    }
+
+    public String buildRedeemUrl() {
+        return UriComponentsBuilder.fromUriString(properties.getRedeemUrl())
+                .queryParam("campaignId", properties.getCampaignId())
+                .queryParam("gift_code", properties.getGiftCode())
+                .toUriString();
+    }
+
+    public URI buildRedeemUri() {
+        return URI.create(buildRedeemUrl());
+    }
+
+    private boolean looksLikeRedeemLandingPage(String body) {
+        if (!StringUtils.hasText(body)) {
+            return false;
+        }
+
+        String normalized = body.toLowerCase();
+        return normalized.contains("redeem your code to enjoy all of the new york times")
+                || normalized.contains("after redeeming your code, activate your access")
+                || normalized.contains("data-testid=\"input-code\"")
+                || normalized.contains("placeholder=\"enter code here\"");
     }
 
     private String getAccessToken(Authentication authentication) {

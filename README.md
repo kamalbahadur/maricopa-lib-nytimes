@@ -52,7 +52,7 @@ make build             # build the jar only (no install)
 
 - OAuth2 login with Google (`spring-security-oauth2-client`)
 - Public health endpoint via `GET /health`
-- Manual trigger via `GET /renew/trigger` (and backward-compatible alias `GET /renew`)
+- Manual trigger via `GET /renew/trigger` (and backward-compatible alias `GET /renew`) which redirects to the NYTimes redeem page
 - Scheduled renewal every day at midnight (`@Scheduled(cron = "0 0 0 * * ?")`)
 - Centralized config for gift code and campaign id
 - Unit and integration tests for success, missing-token, and downstream-error paths
@@ -101,7 +101,7 @@ All settings are loaded from `secrets.env` (required, git-ignored) plus `src/mai
 | Endpoint | Auth | Description |
 |---|---|---|
 | `GET /health` | Public | Returns `ok` |
-| `GET /renew/trigger` | Required | Trigger renewal immediately |
+| `GET /renew/trigger` | Required | Redirects your browser to the NYTimes redeem page |
 | `GET /renew` | Required | Alias for `/renew/trigger` |
 
 ## How It Works
@@ -110,17 +110,19 @@ All settings are loaded from `secrets.env` (required, git-ignored) plus `src/mai
 2. Spring stores and refreshes the authorized client token automatically.
 3. `SubscriptionService` calls the NYTimes redeem link with the configured campaign and gift code.
 4. `DailyJob` runs at midnight and calls the same renew logic automatically.
-5. `NYTimesController` exposes `/renew/trigger` for on-demand testing.
+5. `NYTimesController` exposes `/renew/trigger` for on-demand browser-based redemption.
 
 ## Authentication Notes
 
 - `/health` is public.
 - `/renew` and `/renew/trigger` require an authenticated session.
-- If no authorized OAuth2 client is cached yet, renew returns:
+- If no authorized OAuth2 client is cached yet, server-side checks return:
   ```
   Failed to retrieve access token. Login once with Google OAuth2 to cache an authorized client.
   ```
   Visit `http://localhost:8080` in your browser, log in with Google, then call renew again.
+
+- A backend HTTP `200` from NYTimes does **not** necessarily mean the subscription was activated. The NYTimes redeem flow is browser-driven, so the app now redirects manual renews to NYTimes instead of reporting a false success.
 
 ## Makefile Reference
 
@@ -174,6 +176,10 @@ Current test coverage:
 - **Downstream NYTimes failure (`Subscription failed with status: ...`)**
   - Verify the redeem URL, gift code, and campaign id are correct in `secrets.env`.
   - Retry after a short interval if the NYTimes API is transiently unavailable.
+
+- **Manual renew redirects to NYTimes but you still need to finish redemption**
+  - This is expected. Complete the NYTimes redeem/login steps in the browser.
+  - Then confirm the subscription in your NYTimes account page.
 
 - **Service won't start**
   - Run `make service-logs` to check for startup errors.

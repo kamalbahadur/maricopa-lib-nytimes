@@ -102,9 +102,11 @@ Use a browser while signed in with the same Google account as `GOOGLE_EMAIL`:
 
 - Open: `http://localhost:8080/renew/trigger`
 
-Expected successful response contains:
+Expected behavior:
 
-- `Manual renewal triggered: Subscription successful`
+- The app redirects you to the NYTimes redeem page.
+- Complete the redeem/login steps in your browser if prompted.
+- After finishing the NYTimes flow, verify subscription status in your NYTimes account.
 
 ### C) Verify via logs
 
@@ -114,7 +116,9 @@ make service-logs
 
 Look for lines similar to:
 
-- `NYTimes subscription redemption succeeded. status=200`
+- `NYTimes redeem page loaded, but activation could not be verified automatically`
+
+This is expected for the current NYTimes flow because final activation happens in the browser.
 
 ### D) Optional health check
 
