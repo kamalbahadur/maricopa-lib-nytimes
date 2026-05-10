@@ -1,7 +1,6 @@
 package com.kamalbahadur.maricopalibnytimes.job;
 
-import com.kamalbahadur.maricopalibnytimes.service.BrowserRenewalResult;
-import com.kamalbahadur.maricopalibnytimes.service.RenewalAutomationService;
+import com.kamalbahadur.maricopalibnytimes.service.SubscriptionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -14,17 +13,15 @@ import static org.mockito.Mockito.when;
 class DailyJobTest {
 
     @Mock
-    private RenewalAutomationService renewalAutomationService;
+    private SubscriptionService subscriptionService;
 
     @Test
-    void scheduledJobInvokesBrowserAutomationRenewal() {
-        when(renewalAutomationService.renewOnce())
-                .thenReturn(new BrowserRenewalResult(BrowserRenewalResult.Status.SUCCESS, "ok"));
+    void scheduledJobBuildsReminderMessage() {
+        when(subscriptionService.buildReminderMessage()).thenReturn("reminder");
 
-        DailyJob dailyJob = new DailyJob(renewalAutomationService);
+        DailyJob dailyJob = new DailyJob(subscriptionService);
         dailyJob.runDailyJob();
 
-        verify(renewalAutomationService).renewOnce();
+        verify(subscriptionService).buildReminderMessage();
     }
 }
-

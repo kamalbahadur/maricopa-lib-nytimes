@@ -1,28 +1,29 @@
 package com.kamalbahadur.maricopalibnytimes.controller;
 
-import com.kamalbahadur.maricopalibnytimes.service.BrowserRenewalResult;
-import com.kamalbahadur.maricopalibnytimes.service.RenewalAutomationService;
+import com.kamalbahadur.maricopalibnytimes.service.SubscriptionService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class NYTimesController {
 
-    private final RenewalAutomationService renewalAutomationService;
+    private final SubscriptionService service;
 
-    public NYTimesController(RenewalAutomationService renewalAutomationService) {
-        this.renewalAutomationService = renewalAutomationService;
+    public NYTimesController(SubscriptionService service) {
+        this.service = service;
     }
 
     @GetMapping("/renew/trigger")
-    public String triggerRenewNow() {
-        BrowserRenewalResult result = renewalAutomationService.renewOnce();
-        return "Manual renewal triggered: " + result.message();
+    public ResponseEntity<Void> triggerRenewNow() {
+        return ResponseEntity.status(302)
+                .header(HttpHeaders.LOCATION, service.buildRedeemUri().toString())
+                .build();
     }
 
     @GetMapping("/renew")
-    public String renew() {
-        // Backward-compatible alias for the explicit trigger endpoint.
+    public ResponseEntity<Void> renew() {
         return triggerRenewNow();
     }
 }

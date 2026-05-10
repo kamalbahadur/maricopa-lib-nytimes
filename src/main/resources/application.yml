@@ -1,28 +1,5 @@
-spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID:replace-me}
-            client-secret: ${GOOGLE_CLIENT_SECRET:replace-me}
-            scope:
-              - openid
-              - profile
-              - email
-
 nytimes:
   redeem-url: ${NYTIMES_REDEEM_URL:https://www.nytimes.com/subscription/redeem/all-access}
   campaign-id: ${NYTIMES_CAMPAIGN_ID:87LH8}
   gift-code: ${NYTIMES_GIFT_CODE:1fd71a2edc5d2d0f}
-  browser:
-    user-data-dir: ${NYTIMES_BROWSER_USER_DATA_DIR:${user.home}/.maricopa-lib-nytimes/browser-data}
-    headless: ${NYTIMES_BROWSER_HEADLESS:true}
-    timeout-seconds: ${NYTIMES_BROWSER_TIMEOUT_SECONDS:60}
-    bootstrap-timeout-minutes: ${NYTIMES_BROWSER_BOOTSTRAP_TIMEOUT_MINUTES:15}
-    slow-mo-millis: ${NYTIMES_BROWSER_SLOW_MO_MILLIS:75}
-    command: ${NYTIMES_BROWSER_COMMAND:}
-  oauth2:
-    registration-id: ${NYTIMES_OAUTH2_REGISTRATION_ID:google}
-    principal-name: ${NYTIMES_OAUTH2_PRINCIPAL_NAME:replace-with-google-email}
 

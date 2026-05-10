@@ -1,7 +1,6 @@
 package com.kamalbahadur.maricopalibnytimes.job;
 
-import com.kamalbahadur.maricopalibnytimes.service.BrowserRenewalResult;
-import com.kamalbahadur.maricopalibnytimes.service.RenewalAutomationService;
+import com.kamalbahadur.maricopalibnytimes.service.SubscriptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -12,16 +11,15 @@ public class DailyJob {
 
     private static final Logger log = LoggerFactory.getLogger(DailyJob.class);
 
-    private final RenewalAutomationService renewalAutomationService;
+    private final SubscriptionService service;
 
-    public DailyJob(RenewalAutomationService renewalAutomationService) {
-        this.renewalAutomationService = renewalAutomationService;
+    public DailyJob(SubscriptionService service) {
+        this.service = service;
     }
 
     @Scheduled(cron = "0 0 0 * * ?") // Every day at midnight
     public void runDailyJob() {
-        log.info("Running NYTimes daily subscription job");
-        BrowserRenewalResult result = renewalAutomationService.renewOnce();
-        log.info("NYTimes daily subscription job result: status={} message={}", result.status(), result.message());
+        log.info("Running NYTimes daily reminder job");
+        log.info(service.buildReminderMessage());
     }
 }
