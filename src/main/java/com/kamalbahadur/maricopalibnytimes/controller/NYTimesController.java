@@ -26,4 +26,9 @@ public class NYTimesController {
     public ResponseEntity<Void> renew() {
         return triggerRenewNow();
     }
+
+    @GetMapping("/renew/url")
+    public String renewUrl() {
+        return service.buildRedeemUrl();
+    }
 }

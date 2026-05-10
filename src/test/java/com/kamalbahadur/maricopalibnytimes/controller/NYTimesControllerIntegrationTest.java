@@ -44,4 +44,11 @@ class NYTimesControllerIntegrationTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().string("Location", "https://www.nytimes.com/subscription/redeem/all-access?campaignId=87LH8&gift_code=gift-code"));
     }
+
+    @Test
+    void renewUrlEndpointReturnsPlainRedeemLink() throws Exception {
+        mockMvc.perform(get("/renew/url"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("https://www.nytimes.com/subscription/redeem/all-access?campaignId=87LH8&gift_code=gift-code"));
+    }
 }
