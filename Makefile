@@ -14,6 +14,7 @@ NYTIMES_BROWSER_HEADLESS ?= true
 NYTIMES_BROWSER_TIMEOUT_SECONDS ?= 60
 NYTIMES_BROWSER_BOOTSTRAP_TIMEOUT_MINUTES ?= 15
 PLAYWRIGHT_CLI := mvn -B -DskipTests exec:java -Dexec.mainClass=com.microsoft.playwright.CLI
+AUTOMATION_RUN := mvn -B spring-boot:run -Dspring-boot.run.arguments=--spring.main.web-application-type=none
 
 .PHONY: test build bundle run-bundle install-service uninstall-service \
 		service-logs service-status install-browser bootstrap-browser-session \
@@ -104,13 +105,13 @@ bootstrap-browser-session:
 	NYTIMES_BROWSER_HEADLESS=false \
 	NYTIMES_BROWSER_USER_DATA_DIR="$(INSTALL_DIR)/browser-data" \
 	NYTIMES_BROWSER_COMMAND=bootstrap \
-	mvn -B spring-boot:run
+	$(AUTOMATION_RUN)
 
 renew-once:
 	NYTIMES_BROWSER_HEADLESS=$(NYTIMES_BROWSER_HEADLESS) \
 	NYTIMES_BROWSER_USER_DATA_DIR="$(INSTALL_DIR)/browser-data" \
 	NYTIMES_BROWSER_COMMAND=renew-once \
-	mvn -B spring-boot:run
+	$(AUTOMATION_RUN)
 
 # ---------------------------------------------------------------------------
 # Service: install/run as a systemd service (Linux only)

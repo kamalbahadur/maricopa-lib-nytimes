@@ -34,6 +34,8 @@ make install-service
 make bootstrap-browser-session
 ```
 
+`make bootstrap-browser-session` and `make renew-once` run in a non-web automation mode, so they do not try to bind port `8080` and are safe to use while the installed service is running.
+
 If you pull a newer version later, run `make install-service` again so the service jar and generated runtime config are refreshed.
 
 That's it. The app will:

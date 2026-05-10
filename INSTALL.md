@@ -91,6 +91,8 @@ Bootstrap the NYTimes browser session one time so scheduled renewals can reuse i
 make bootstrap-browser-session
 ```
 
+This command runs the automation in a non-web mode, so it does **not** conflict with the installed service already using port `8080`.
+
 Expected bootstrap behavior:
 
 - A Chromium window opens.
@@ -122,6 +124,8 @@ Run a one-time headless renewal using the saved browser session:
 ```bash
 make renew-once
 ```
+
+This command also runs in non-web mode and can be executed while the service is running.
 
 Expected behavior:
 
