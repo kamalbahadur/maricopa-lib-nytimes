@@ -1,6 +1,6 @@
 # maricopa-lib-nytimes
 
-A Spring Boot app that automatically redeems a Maricopa Library NYTimes access code every day at midnight using your Google account.
+A Spring Boot app that uses browser automation to redeem a Maricopa Library NYTimes access code every day at midnight using a saved NYTimes browser session.
 
 ## Quickstart (Clone → Configure → Run as a Service)
 
@@ -11,6 +11,9 @@ cd maricopa-lib-nytimes
 
 # 2. Copy the secrets template and fill in your values
 cp secrets.env.example secrets.env
+
+# 3. Install the browser used by automation
+make install-browser
 ```
 
 Edit `secrets.env`:
@@ -24,8 +27,11 @@ GOOGLE_EMAIL=you@example.com
 See **[Get Google Client ID And Secret](#get-google-client-id-and-secret)** below for how to obtain these.
 
 ```bash
-# 3. Build and install as a background service (Linux/systemd)
+# 4. Build and install as a background service (Linux/systemd)
 make install-service
+
+# 5. Bootstrap the NYTimes browser session once
+make bootstrap-browser-session
 ```
 
 If you pull a newer version later, run `make install-service` again so the service jar and generated runtime config are refreshed.
@@ -50,11 +56,13 @@ make build             # build the jar only (no install)
 
 ## Features
 
-- OAuth2 login with Google (`spring-security-oauth2-client`)
+- Playwright-based browser automation with persisted NYTimes session storage
+- OAuth2 login with Google (`spring-security-oauth2-client`) for protected app endpoints
 - Public health endpoint via `GET /health`
-- Manual trigger via `GET /renew/trigger` (and backward-compatible alias `GET /renew`) which redirects to the NYTimes redeem page
+- Manual trigger via `GET /renew/trigger` (and backward-compatible alias `GET /renew`) to run one browser-automation renewal now
 - Scheduled renewal every day at midnight (`@Scheduled(cron = "0 0 0 * * ?")`)
-- Centralized config for gift code and campaign id
+- One-time interactive browser bootstrap command to save NYTimes session state
+- Centralized config for gift code, campaign id, and browser automation settings
 - Unit and integration tests for success, missing-token, and downstream-error paths
 - Systemd service installation via `make install-service`
 
@@ -95,22 +103,24 @@ All settings are loaded from `secrets.env` (required, git-ignored) plus `src/mai
 | `NYTIMES_REDEEM_URL` | ❌ | `https://www.nytimes.com/subscription/redeem/all-access` | NYTimes redeem link |
 | `NYTIMES_CAMPAIGN_ID` | ❌ | `87LH8` | Maricopa library campaign |
 | `NYTIMES_GIFT_CODE` | ❌ | `1fd71a2edc5d2d0f` | Maricopa library gift code |
+| `NYTIMES_BROWSER_TIMEOUT_SECONDS` | ❌ | `60` | Browser automation timeout |
+| `NYTIMES_BROWSER_BOOTSTRAP_TIMEOUT_MINUTES` | ❌ | `15` | How long bootstrap waits for you to complete login |
 
 ## Endpoints
 
 | Endpoint | Auth | Description |
 |---|---|---|
 | `GET /health` | Public | Returns `ok` |
-| `GET /renew/trigger` | Required | Redirects your browser to the NYTimes redeem page |
+| `GET /renew/trigger` | Required | Runs one browser-automation renewal using the saved NYTimes session |
 | `GET /renew` | Required | Alias for `/renew/trigger` |
 
 ## How It Works
 
-1. User (or service startup) authenticates with Google via Spring Security OAuth2 login.
-2. Spring stores and refreshes the authorized client token automatically.
-3. `SubscriptionService` calls the NYTimes redeem link with the configured campaign and gift code.
-4. `DailyJob` runs at midnight and calls the same renew logic automatically.
-5. `NYTimesController` exposes `/renew/trigger` for on-demand browser-based redemption.
+1. Install Playwright Chromium once with `make install-browser`.
+2. Run `make bootstrap-browser-session` and complete the NYTimes redeem/login flow in the opened browser.
+3. Playwright stores the browser session in a persistent local profile directory.
+4. `DailyJob` runs at midnight and reuses that saved browser session for headless auto-renewal.
+5. `NYTimesController` exposes `/renew/trigger` for on-demand browser-automation renewal tests.
 
 ## Authentication Notes
 
@@ -122,16 +132,20 @@ All settings are loaded from `secrets.env` (required, git-ignored) plus `src/mai
   ```
   Visit `http://localhost:8080` in your browser, log in with Google, then call renew again.
 
-- A backend HTTP `200` from NYTimes does **not** necessarily mean the subscription was activated. The NYTimes redeem flow is browser-driven, so the app now redirects manual renews to NYTimes instead of reporting a false success.
+- The actual redeem flow is browser-driven. Scheduled auto-renew works by reusing the session created during `make bootstrap-browser-session`.
+- If the saved NYTimes session expires, renewals return `BOOTSTRAP_REQUIRED` and you need to run the bootstrap command again.
 
 ## Makefile Reference
 
 | Target | Description |
 |---|---|
 | `make test` | Run the test suite |
+| `make install-browser` | Download/install the Playwright Chromium browser |
 | `make build` | Build the jar (skips tests) |
 | `make bundle` | Build + package into `bundle/maricopa-lib-nytimes/` |
 | `make run-bundle` | Run the bundled app locally |
+| `make bootstrap-browser-session` | Open a real browser so you can save an NYTimes session for future automation |
+| `make renew-once` | Run one headless browser-automation renewal now |
 | `make install-service` | Build + install + enable + start as a systemd service |
 | `make uninstall-service` | Stop, disable, and remove the service |
 | `make service-status` | Check service status |
@@ -159,10 +173,9 @@ Current test coverage:
 - `SubscriptionService` unit tests: token-missing and successful redeem.
 - `NYTimesController` integration tests:
   - `/health` public access
-  - `/renew` success path
-  - `/renew/trigger` success path
-  - missing authorized client
-  - downstream NYTimes 500 error
+  - `/renew` browser-automation success messaging
+  - `/renew/trigger` bootstrap-required messaging
+- `DailyJob` unit test for scheduled browser-automation invocation
 
 ## Troubleshooting
 
@@ -177,9 +190,19 @@ Current test coverage:
   - Verify the redeem URL, gift code, and campaign id are correct in `secrets.env`.
   - Retry after a short interval if the NYTimes API is transiently unavailable.
 
-- **Manual renew redirects to NYTimes but you still need to finish redemption**
-  - This is expected. Complete the NYTimes redeem/login steps in the browser.
-  - Then confirm the subscription in your NYTimes account page.
+- **Renewal says `BOOTSTRAP_REQUIRED`**
+  - Your saved NYTimes browser session is missing or expired.
+  - Run:
+    ```bash
+    make bootstrap-browser-session
+    ```
+
+- **Need to test the real scheduled path manually**
+  - Run:
+    ```bash
+    make renew-once
+    ```
+  - Then confirm the result in your NYTimes account page.
 
 - **Service won't start**
   - Run `make service-logs` to check for startup errors.

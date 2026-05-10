@@ -29,7 +29,12 @@
           <groupId>org.springframework.boot</groupId>                                      
           <artifactId>spring-boot-starter-oauth2-client</artifactId>                       
       </dependency>                                                                        
-      <dependency>                                                                         
+      <dependency>
+          <groupId>com.microsoft.playwright</groupId>
+          <artifactId>playwright</artifactId>
+          <version>1.53.0</version>
+      </dependency>
+      <dependency>
           <groupId>org.springframework.boot</groupId>                                      
           <artifactId>spring-boot-starter-test</artifactId>                                
           <scope>test</scope>                                                              
@@ -46,6 +51,11 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
             </plugin>
         </plugins>
     </build>

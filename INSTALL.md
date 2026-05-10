@@ -71,6 +71,12 @@ How to obtain `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`:
 
 ## 3) Install the App
 
+Install the Playwright-managed Chromium browser used by the automation flow:
+
+```bash
+make install-browser
+```
+
 Install and run as a Linux `systemd` service:
 
 ```bash
@@ -78,6 +84,19 @@ make install-service
 ```
 
 If you pull a newer version of the repo later, run `make install-service` again so the service jar and generated `bundle.env` are refreshed.
+
+Bootstrap the NYTimes browser session one time so scheduled renewals can reuse it later:
+
+```bash
+make bootstrap-browser-session
+```
+
+Expected bootstrap behavior:
+
+- A Chromium window opens.
+- Complete the NYTimes redeem/login flow in that browser window.
+- Close the window when finished.
+- The automation session is saved for future scheduled renewals.
 
 Useful service commands:
 
@@ -98,15 +117,17 @@ You should see it as `active (running)`.
 
 ### B) Trigger a manual renewal test
 
-Use a browser while signed in with the same Google account as `GOOGLE_EMAIL`:
+Run a one-time headless renewal using the saved browser session:
 
-- Open: `http://localhost:8080/renew/trigger`
+```bash
+make renew-once
+```
 
 Expected behavior:
 
-- The app redirects you to the NYTimes redeem page.
-- Complete the redeem/login steps in your browser if prompted.
-- After finishing the NYTimes flow, verify subscription status in your NYTimes account.
+- The job reuses the saved browser session from the bootstrap step.
+- It attempts the NYTimes redeem flow automatically.
+- Then you verify the result in your NYTimes account.
 
 ### C) Verify via logs
 
@@ -116,9 +137,11 @@ make service-logs
 
 Look for lines similar to:
 
-- `NYTimes redeem page loaded, but activation could not be verified automatically`
+- `NYTimes daily subscription job result: status=SUCCESS`
+- `NYTimes daily subscription job result: status=ALREADY_ACTIVE`
+- `NYTimes daily subscription job result: status=BOOTSTRAP_REQUIRED`
 
-This is expected for the current NYTimes flow because final activation happens in the browser.
+If you see `BOOTSTRAP_REQUIRED`, run `make bootstrap-browser-session` again to refresh the saved browser session.
 
 ### D) Optional health check
 
